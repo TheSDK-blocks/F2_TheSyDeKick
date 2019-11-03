@@ -1,0 +1,84 @@
+[submodule "Entities/thesdk_helpers"]
+	path = Entities/thesdk_helpers
+	url = git@github.com:TheSystemDevelopmentKit/thesdk_helpers.git
+[submodule "Entities/thesdk"]
+	path = Entities/thesdk
+	url = git@github.com:TheSystemDevelopmentKit/thesdk.git
+[submodule "Entities/verilog"]
+	path = Entities/verilog
+	url = git@github.com:TheSystemDevelopmentKit/verilog.git
+[submodule "Entities/signal_generator_802_11n"]
+	path = Entities/signal_generator_802_11n
+	url = git@github.com:TheSDK-blocks/signal_generator_802_11n.git
+[submodule "Entities/halfband"]
+	path = Entities/halfband
+	url = git@github.com:TheSDK-blocks/halfband.git
+[submodule "Entities/halfband_interpolator"]
+	path = Entities/halfband_interpolator
+	url = git@github.com:TheSDK-blocks/halfband_interpolator.git
+[submodule "Entities/cic3"]
+	path = Entities/cic3
+	url = git@github.com:TheSDK-blocks/cic3.git
+[submodule "Entities/cic3_interpolator"]
+	path = Entities/cic3_interpolator
+	url = git@github.com:TheSDK-blocks/cic3_interpolator.git
+[submodule "Entities/f2_decimator"]
+	path = Entities/f2_decimator
+	url = git@github.com:TheSDK-blocks/f2_decimator.git
+[submodule "Entities/f2_interpolator"]
+	path = Entities/f2_interpolator
+	url = git@github.com:TheSDK-blocks/f2_interpolator.git
+[submodule "Entities/f2_scan_controller"]
+	path = Entities/f2_scan_controller
+	url = git@github.com:TheSDK-blocks/f2_scan_controller.git
+[submodule "Entities/segmented_dac"]
+	path = Entities/segmented_dac
+	url = git@github.com:TheSDK-blocks/segmented_dac.git
+[submodule "Entities/FFT"]
+	path = Entities/FFT
+	url = git@github.com:TheSDK-blocks/FFT.git
+[submodule "Entities/channel_equalizer"]
+	path = Entities/channel_equalizer
+	url = git@github.com:TheSDK-blocks/channel_equalizer.git
+[submodule "Entities/f2_symbol_sync"]
+	path = Entities/f2_symbol_sync
+	url = git@github.com:TheSDK-blocks/f2_symbol_sync.git
+[submodule "Entities/f2_adc"]
+	path = Entities/f2_adc
+	url = git@github.com:TheSDK-blocks/f2_adc.git
+[submodule "Entities/f2_rx_dsp"]
+	path = Entities/f2_rx_dsp
+	url = git@github.com:TheSDK-blocks/f2_rx_dsp.git
+[submodule "Entities/f2_tx_path"]
+	path = Entities/f2_tx_path
+	url = git@github.com:TheSDK-blocks/f2_tx_path.git
+[submodule "Entities/f2_tx_dsp"]
+	path = Entities/f2_tx_dsp
+	url = git@github.com:TheSDK-blocks/f2_tx_dsp.git
+[submodule "Entities/f2_dsp"]
+	path = Entities/f2_dsp
+	url = git@github.com:TheSDK-blocks/f2_dsp.git
+[submodule "Entities/f2_chip"]
+	path = Entities/f2_chip
+	url = git@github.com:TheSDK-blocks/f2_chip.git
+[submodule "Entities/f2_testbench"]
+	path = Entities/f2_testbench
+	url = git@github.com:TheSDK-blocks/f2_testbench.git
+[submodule "Entities/f2_channel"]
+	path = Entities/f2_channel
+	url = git@github.com:TheSDK-blocks/f2_channel.git
+[submodule "Entities/multirate"]
+	path = Entities/multirate
+	url = git@github.com:TheSDK-blocks/multirate.git
+[submodule "Entities/ofdm_rx"]
+	path = Entities/ofdm_rx
+	url = git@github.com:TheSDK-blocks/ofdm_rx.git
+[submodule "Simulations/Slidetemplate"]
+	path = Simulations/Slidetemplate
+	url = git@github.com:TheSystemDevelopmentKit/slidetemplate.git
+[submodule "Simulations/Simtemplate"]
+	path = Simulations/Simtemplate
+	url = git@github.com:TheSystemDevelopmentKit/simtemplate.git
+[submodule "Entities/modem"]
+	path = Entities/modem
+	url = git@github.com:TheSDK-blocks/modem.git
