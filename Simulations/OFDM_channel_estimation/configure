@@ -1,0 +1,310 @@
+#!/bin/sh
+#############################################################################
+# This is a Matlab simulation configuration script file. 
+# The purpose is to control the toplevel simulation so that simulation
+# and the result analysis can be controlled
+# in parametrized manner from this single file
+# Created by Marko Kosunen on 24.03.2015
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 05.09.2017 11:57
+#############################################################################
+##Function to display help with -h argument and to control 
+##The configuration from the commnad line
+help_f()
+{
+    echo -e "CONFIGURE Release 1.0 (04.04.2016)"
+    echo -e "configure-configuration script for a digital flow"
+    echo -e "Written by Marko "Pikkis" Kosunen"
+    echo -e -n "\n"
+    echo -e "SYNOPSIS"
+    echo -e "  configure [OPTIONS] "
+    echo -e "DESCRIPTION"
+    echo -e "  Producess all configuration and Makefile for the digital flow"
+    echo -e -n "\n"
+    echo -e "OPTIONS"
+    echo -e "  -M"
+    echo -e "      Do not reconfigure matlab control file."
+    echo -e "  -S"
+    echo -e "      Do not reconfigure slides."
+    echo -e "  -h"
+    echo -e "      Show this help."
+}
+
+# Configuration control, '1'=configure
+MATLABCONF="1"
+SLIDES="1"
+while getopts MSh opt
+do
+  case "$opt" in
+    M) MATLABCONF="0";;
+    S) SLIDES="0";;
+    h) help_f; exit 0;;
+    \?) help_f;;
+  esac
+done
+
+
+# Design paths and common commands
+. ../../TheSDK.config
+
+# SET ALL VARIABLES AND PATHS RELATIVE TO THE CURRENT DESIGN
+ROOTPATH=`pwd`
+TEMPLATEDIR="${THESDKHOME}/Simulations/Slidetemplate"
+MATLABPATH="${ROOTPATH}/Matlab"
+SLIDEPATH="${ROOTPATH}/Slides"
+PICPATH="${ROOTPATH}/Pics"
+#Check, create if missing 
+for dir in ${ROOTPATH} ${MATLABPATH}  ${MATLABPATH}/Matfiles \
+ ${PICPATH}; do
+  if [ ! -d "$dir" ]; then
+    echo "Creating directory $dir"
+    mkdir -p $dir
+  fi
+done
+if [ ! -d "$SLIDEPATH" ]; then
+    echo "Creating directory $dir"
+    ${TEMPLATEDIR}/initslides ${SLIDEPATH}
+fi
+
+#Top entity name and savestring (i.e. for filenames)
+#Defaults the directory name
+TOP_ENTITY=`basename $ROOTPATH`
+
+#Matlab does not support special characters.
+MATLABFILE=`echo ${TOP_ENTITY} | sed 's/\([^[:alnum:]]*\)//g'`
+if [ ${MATLABCONF} == "1" ]; then
+#############################################################################
+# Matlab command file generation
+#############################################################################
+CURRENTFILE="${MATLABPATH}/${MATLABFILE}.m"
+echo "Creating ${CURRENTFILE}"
+cat <<EOF > ${CURRENTFILE}
+%You may write any matlab code here to control your sim
+clear all;
+close all;
+cla;
+rootpath='$ROOTPATH'
+picpath=[rootpath '/Pics'];
+matpath=[rootpath '/Matlab/Matfiles'];
+addpath(genpath('$THESDKHOME'))
+datamodes= {'sinusoid3' 'sinusoid3' 'ofdm' 'ofdm'}
+models={ 'matlab' 'sv' 'matlab' 'sv'};
+parfor i=1:length(models)
+    s(i)=ofdm_channel_estimator;
+    s(i).model= models{i};
+    s(i).datamode=datamodes{i};
+    s(i).init;
+    %s(i).printpath=picpath;
+    s(i).estimate;
+end
+
+f=(0:63)/s(1).Rs;
+%Plotting
+ymax=(2^15)/sqrt(s(1).Nsc);
+
+for dm=1:2
+    for figi=1:3
+        figure((dm-1)*3+figi)
+        for sb=1:2
+            g=squeeze(s((dm-1)*2+sb).estimates(1,1,:,:));
+            fprintf(1,'Maximum peak is %f\n', max(abs(g(1,:))))
+            subplot(2,1,sb);
+                if figi==1
+                   h = plot(f,abs(g(1,:)),'LineWidth',2);
+                   axis([0 max(f) 0 (ymax-1+64)]);
+                   ylabel('Magnitude', 'FontSize', 12);
+                elseif figi==2
+                   t=20*log10(abs(g(1,:)));
+                   indinf=find(isinf(t)==1);
+                   minabs=20;
+                   t(indinf)=minabs;
+                   h = plot(f,t,'LineWidth',2);
+                   axis([0 max(f)  minabs 20*log10(2^ymax-1+64)]);
+                   ylabel('Magnitude (dB)', 'FontSize', 12);
+                elseif figi==3
+                    h = plot(f,angle(g(1,:)),'LineWidth',2);
+                   axis([0 max(f) -1.5*pi 1.5*pi]);
+                   ylabel('Angle (rad)', 'FontSize', 12);
+                end
+            %legend(s(sb).model);
+            tstr=sprintf('FFT, 64 points, %s, %s', s((dm-1)*2+sb).datamode, s((dm-1)*2+sb).model );
+            title(tstr);
+            set(gca,'FontSize',14);
+            set(gca,'FontWeight','Bold');
+            set(gca,'LineWidth',2)
+            %set(gca,'Xtick',tmarks)
+            grid on
+            eval(['print -depsc ' picpath '/' mfilename '_' num2str((dm-1)*3+figi) '.eps']); 
+        end
+    end
+end
+%eval(['print -depsc ' picpath '/Matlabfig1.eps']);
+
+EOF
+fi
+
+#############################################################################
+# Slides generation
+#############################################################################
+if [ "${SLIDES}" == "1" ]; then
+#############Slides latex file############################################
+CURRENTFILE="${SLIDEPATH}/${TOP_ENTITY}.tex"
+SLIDETITLE=`echo ${TOP_ENTITY} | sed 's/_/ /g'`
+echo "Creating ${CURRENTFILE}"
+#Generate preamble
+cat <<EOF > ${CURRENTFILE}
+\PassOptionsToPackage{ELEC}{aaltologo}
+%\documentclass[first=dgreen,second=purple,logo=bluequo,normaltitle]{aaltoslides}
+\documentclass[logo=bluequo]{aaltoslides}
+%\documentclass{aaltoslides} % DEFAULT
+%\documentclass[first=purple,second=lgreen,logo=bquo,normaltitle,nofoot]{aaltoslides} % SOME OPTION EXAMPLES
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{amssymb,amsmath}
+\usepackage{url}
+\usepackage{lastpage}
+\usepackage{epstopdf}
+%\usepackage[pdfpagemode=None,colorlinks=true,urlcolor=red, linkcolor=black,citecolor=black,pdfstartview=FitH]{hyperref}
+\usepackage{mdframed}
+\usepackage{caption}
+\usepackage{apacite}
+\usepackage{tikz}
+\usetikzlibrary{positioning,shapes,shadows,arrows}
+\tikzset{
+  every overlay node/.style={
+    %draw=black,fill=white,rounded corners,
+    anchor=north west, inner sep=0pt,
+  },
+}
+\def\tikzoverlay{%
+   \tikz[remember picture, overlay]\node[every overlay node]
+}%
+
+%%%% This for easy placemnet of figure inside a block
+\newcommand{\putfig}[3][1.0]{
+    \begin{block}{#3}
+        \includegraphics[width=#1\linewidth,height=#1\textheight,keepaspectratio]{#2}
+    \end{block}
+}
+%%%%
+
+%%%% To insert lecture date
+\newcommand{\lectdate}{\today}
+%%%%
+
+\title{${SLIDETITLE}}
+
+\author[Marko Kosunen]{Marko Kosunen}
+\institute[MNT]{Department of Electronics and Nanoengineering\\\\
+Aalto University, School of Electrical Engineering\\\\marko.kosunen@aalto.fi}
+
+\aaltofootertext{${SLIDETITLE}}{\lectdate}{\arabic{page}/\pageref{LastPage}\ }
+
+\date{\lectdate}
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Generates the titleframe
+\aaltotitleframe
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+EOF
+
+for FILE in OFDMchannelestimation_1.eps  OFDMchannelestimation_2.eps  OFDMchannelestimation_3.eps \
+    OFDMchannelestimation_4.eps  OFDMchannelestimation_5.eps  OFDMchannelestimation_6.eps; do 
+cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/${FILE}}
+    \end{center}
+\end{frame}
+
+EOF
+done
+
+echo "\end{document}" >> ${CURRENTFILE}
+fi
+
+############################# MAKEFILE   ####################################
+CURRENTFILE="${ROOTPATH}/Makefile"
+echo "Creating ${CURRENTFILE}"
+cat <<EOF > ${CURRENTFILE}
+#Directories
+THESDKHOME = ${THESDKHOME}
+TOP_ENTITY= ${TOP_ENTITY}
+MATLABPATH= ${MATLABPATH}
+PICPATH= ${PICPATH}
+SLIDEPATH= ${SLIDEPATH}
+MATLABFILE= ${MATLABFILE}
+DEPDIR :=.depdir
+\$(shell mkdir -p \$(DEPDIR) >/dev/null)
+
+#Commands defined in ../../The_SDK.config
+MATLAB= ${MATLAB} 
+MATLABI= ${MATLABI} 
+MATLABG= ${MATLABG} 
+TOUCH=touch -r
+#You must ensure these cmdfiles update the target
+CMDFILES=\$(MATLABPATH)/\$(MATLABFILE).m
+TARGETS=\$(CMDFILES:.m=.status) #Ensure these files are generated with matlab cmd
+
+#Create matlab dependency files from the master cmdfile
+#Need to add the location paths of the matlab dependencies with addpath/genpath
+#Note doubel quote after -r
+MAKEDEPEND= \$(MATLABI) -r "addpath('\$(MATLABPATH)'); \\
+            addpath(genpath('\$(THESDKHOME)/Entities')); \\
+			[fList,pList]=matlab.codetools.requiredFilesAndProducts('\$<'); \\
+			fid=fopen('\$(DEPDIR)/\$(*F).txt','w');\\
+			for i=1:length(fList); fprintf(fid,'%s\n',char(fList(i))); end; quit;" \\
+			&& awk '{print "\$@: " \$\$1 }' \$(DEPDIR)/\$(*F).txt > \$(DEPDIR)/\$(*F).d && rm -f  \$(DEPDIR)/\$(*F).txt
+
+.PHONY: matlabg matlabi matlab slides all
+all: matlab slides
+
+slides: \$(SLIDEPATH)/pdffiles/\$(TOP_ENTITY).pdf 
+
+\$(SLIDEPATH)/pdffiles/%.pdf :  \$(MATLABPATH)/\$(MATLABFILE).status
+	ln -sf \$(PICPATH)/*.eps \$(SLIDEPATH)/Pics/
+	cd \$(SLIDEPATH) && ./makearticle \$(SLIDEPATH)/\$(*F).tex && cd ..
+
+
+#If results are stored in the .mat file
+matlab: \$(TARGETS)
+
+\$(MATLABPATH)/%.status : \$(MATLABPATH)/%.m \$(DEPDIR)/%.d
+	\$(MAKEDEPEND)
+	\$(MATLABI) -r ' addpath \$(MATLABPATH); \$(*F); quit;'
+
+#interactive matlabsession
+matlabi: \$(CMDFILES)
+	\$(MATLABI) -r ' addpath \$(MATLABPATH); \$(MATLABFILE); quit;'
+    
+#interactive gui open
+matlabg: 
+	\$(MATLABG) -r ' addpath \$(MATLABPATH);'
+
+clean:
+	rm -f \$(SLIDEPATH)/Pics/*.eps
+	#rm -f \$(PICPATH)/*.eps
+	rm -f \$(SLIDEPATH)/Pdffiles/*.pdf
+	rm -rf \$(DEPDIR)
+
+#Semicolon is a must?
+\$(DEPDIR)/%.d: ;
+.PRECIOUS: \$(DEPDIR)/%.d
+
+#.depdir/MUMIMOClassDevel.d : ;
+#Includes the dependency files for the cmdfiles generated
+#by \$(MAKEDEPEND). Make is re-run, if these are created.
+#during the make
+#If the include is incorrect, empty recipe does not cause recompilation
+#In that case, Depfiles are considered intermediate.
+include \$(CMDFILES:\$(MATLABPATH)/%.m=\$(DEPDIR)/%.d)
+
+EOF
+
+##################Hereafter some files you should not need to modify ################################
+

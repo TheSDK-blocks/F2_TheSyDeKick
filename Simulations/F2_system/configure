@@ -1,0 +1,587 @@
+#!/bin/sh
+#############################################################################
+# This is a Matlab simulation configuration script file. 
+# The purpose is to control the toplevel simulation so that simulation
+# and the result analysis can be controlled
+# in parametrized manner from this single file
+# Created by Marko Kosunen on 24.03.2015
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 26.01.2018 10:18
+#############################################################################
+##Function to display help with -h argument and to control 
+##The configuration from the commnad line
+help_f()
+{
+    echo -e "CONFIGURE Release 1.0 (04.04.2016)"
+    echo -e "configure-configuration script for a digital flow"
+    echo -e "Written by Marko "Pikkis" Kosunen"
+    echo -e -n "\n"
+    echo -e "SYNOPSIS"
+    echo -e "  configure [OPTIONS] "
+    echo -e "DESCRIPTION"
+    echo -e "  Producess all configuration and Makefile for the digital flow"
+    echo -e -n "\n"
+    echo -e "OPTIONS"
+    echo -e "  -M"
+    echo -e "      Do not reconfigure matlab control file."
+    echo -e "  -P"
+    echo -e "      Do not reconfigure python control file."
+    echo -e "  -S"
+    echo -e "      Do not reconfigure slides."
+    echo -e "  -h"
+    echo -e "      Show this help."
+}
+
+# Configuration control, '1'=configure
+#Only matlab or py, not both
+CONTROLLER="PYTHON" #Use make py, pyi or pyl
+MATLABCONF="0" #Disable Matlab. We run python now
+PYCONF="1"
+SLIDES="1"
+while getopts MPSh opt
+do
+  case "$opt" in
+    M) MATLABCONF="0";;
+    P) PYCONF="0";;
+    S) SLIDES="0";;
+    h) help_f; exit 0;;
+    \?) help_f;;
+  esac
+done
+#THE PARAMETERS
+#These are the models you want to simulate with this file
+#MODELS="[ 'py', 'py', 'py' ]"
+#RXMODELS="[ 'py', 'vhdl', 'sv', 'py' ]"
+#RXMODELS="[ 'py', 'py', 'py', 'py' ]"
+ANTENNAS="4"
+USERS="2"
+#RS="480000000"
+RS="160000000"
+#RS="40000000"
+
+# Design paths and common commands
+. ../../TheSDK.config
+
+# SET ALL VARIABLES AND PATHS RELATIVE TO THE CURRENT DESIGN
+ROOTPATH=`pwd`
+TEMPLATEDIR="${THESDKHOME}/Simulations/Slidetemplate"
+MATLABPATH="${ROOTPATH}/Matlab"
+PYTHONPATH="${ROOTPATH}/Python"
+SLIDEPATH="${ROOTPATH}/Slides"
+PICPATH="${ROOTPATH}/Pics"
+#Check, create if missing 
+for dir in ${ROOTPATH} ${MATLABPATH}  ${MATLABPATH}/Matfiles ${PYTHONPATH} \
+ ${PICPATH}; do
+  if [ ! -d "$dir" ]; then
+    echo "Creating directory $dir"
+    mkdir -p $dir
+  fi
+done
+if [ ! -d "$SLIDEPATH" ]; then
+    echo "Creating directory $dir"
+    ${TEMPLATEDIR}/initslides ${SLIDEPATH}
+fi
+
+if [ ! -d "$SLIDEPATH/Pics" ]; then
+    echo "Creating directory $dir"
+    mkdir ${SLIDEPATH}/Pics
+fi
+
+#Top entity name and savestring (i.e. for filenames)
+#Defaults the directory name
+TOP_ENTITY=`basename $ROOTPATH`
+
+#Matlab does not support special characters.
+MATLABFILE=`echo ${TOP_ENTITY} | sed 's/\([^[:alnum:]]*\)//g'`
+if [ ${MATLABCONF} == "1" ]; then
+#############################################################################
+# Matlab command file generation
+#############################################################################
+CURRENTFILE="${MATLABPATH}/${MATLABFILE}.m"
+echo "Creating ${CURRENTFILE}"
+cat <<EOF > ${CURRENTFILE}
+%You may write any matlab code here to control your sim
+clear all;
+cla;
+rootpath='$ROOTPATH'
+picpath=[rootpath '/Pics'];
+matpath=[rootpath '/Matlab/Matfiles'];
+addpath(genpath('$THESDKHOME'))
+x=1:100;
+figure(1)
+h=plot(x,x);
+axis([min(x) max(x) min(x) max(x)]);
+set(h,'LineWidth',2)
+tstr=sprintf('Response\n');
+title(tstr)
+xlabel('Time [s]')
+ylabel('Voltage [V]');
+legend(h,'Output','Location','southwest');
+set(gca,'FontSize',14);
+set(gca,'FontWeight','Bold');
+set(gca,'LineWidth',2)
+%set(gca,'Xtick',tmarks)
+grid on
+
+eval(['print -depsc ' picpath '/Matlabfig1.eps']);
+
+EOF
+fi
+#Remo special characters
+PYFILE=`echo ${TOP_ENTITY} | sed 's/\([^[:alnum:]]*\)//g'`
+if [ ${PYCONF} == "1" ]; then
+#############################################################################
+# Python command file generation
+#############################################################################
+CURRENTFILE="${PYTHONPATH}/${PYFILE}.py"
+echo "Creating ${CURRENTFILE}"
+cat <<EOF > ${CURRENTFILE}
+#You may write any matlab code here to control your sim
+#Execute this file n console with  
+#exec(open("./${PYFILE}.py").read())
+rootpath='$ROOTPATH'
+picpath=rootpath + '/Pics';
+import sys
+import random
+sys.path.append ('${THESDKHOME}/Entities/thesdk')
+from thesdk import *
+thesdk.initlog("${PYTHONPATH}/${PYFILE}.status")
+
+import f2_system as f2s
+
+t=f2s.f2_system()
+#t.bbsigdict=f2s.f2_system.bbsigdict_sinusoid
+#t.bbsigdict=f2s.f2_system.bbsigdict_sinusoid3
+#t.bbsigdict=f2s.f2_system.bbsigdict_ofdm_sinusoid3
+#t.bbsigdict=f2s.f2_system.bbsigdict_randombitstream_QAM4_OFDM
+#t.bbsigdict=f2s.f2_system.bbsigdict_802_11n_random_QAM16_OFDM
+
+#Channel dictionaries
+#t.channeldict=f2s.f2_system.channeldict_buffer
+#t.channeldict=f2s.f2_system.channeldict_buffer_1km
+#t.channeldict=f2s.f2_system.channeldict_802_11n_A
+#t.channeldict=f2s.f2_system.channeldict_802_11n_B
+#t.channeldict=f2s.f2_system.channeldict_802_11n_C
+#t.channeldict=f2s.f2_system.channeldict_802_11n_D
+#t.channeldict=f2s.f2_system.channeldict_802_11n_E
+#t.channeldict=f2s.f2_system.channeldict_802_11n_F
+
+
+t.Rxantennas=${ANTENNAS}
+t.Users=${USERS}
+t.Rs=${RS}
+#t.rxmodels=${RXMODELS}
+t.picpath=picpath;
+t.init()
+#for i in [ f2s.f2_system.channeldict_buffer, f2s.f2_system.channeldict_buffer, 
+#    f2s.f2_system.channeldict_buffer_1km, f2s.f2_system.channeldict_802_11n_A, 
+#    f2s.f2_system.channeldict_802_11n_B, f2s.f2_system.channeldict_802_11n_C, 
+#    f2s.f2_system.channeldict_802_11n_D, f2s.f2_system.channeldict_802_11n_E ]:
+
+#for i in [ f2s.f2_system.channeldict_buffer]:
+#for i in [ f2s.f2_system.channeldict_802_11n_A ]:
+for i in [ f2s.f2_system.channeldict_802_11n_C ]:
+    #np.random.seed(1000)
+    #random.seed(1000)
+    #t.Disableuser = [ False, False ]
+    #t.Disableuser = [ False, False, False, False]
+    t.channeldict = i
+    t.Nbits=10
+    #t.Txpower=30
+    #t.Txpower=-26
+    t.Txpower=-32
+    #t.Txpower=-20
+    #t.noisetemp=290
+    #t.Rxantennalocations=np.r_[0]
+    t.Rx_NF_dB=0
+    #t.Rxgain=10**((20)/20)
+    t.CPUBFmode='ZF'
+    t.DSPmode='cpu'
+    #t.dsp_decimator_model='py'
+    t.dsp_decimator_model='sv'
+    t.dsp_decimator_scales=[1,2**3,2**3,1]
+    t.Rxgain=7
+    t.Rx_model_filter=True
+    t.Rx_model_noise=True
+    t.channeldict['distance']=0
+    t.define_simple_rx()
+    t.run()
+    t.analyze_simple()
+EOF
+fi
+
+#############################################################################
+# Slides generation
+#############################################################################
+if [ "${SLIDES}" == "1" ]; then
+#############Slides latex file############################################
+CURRENTFILE="${SLIDEPATH}/${TOP_ENTITY}.tex"
+SLIDETITLE=`echo ${TOP_ENTITY} | sed 's/_/ /g'`
+echo "Creating ${CURRENTFILE}"
+#Generate preamble
+cat <<EOF > ${CURRENTFILE}
+\PassOptionsToPackage{ELEC}{aaltologo}
+%\documentclass[first=dgreen,second=purple,logo=bluequo,normaltitle]{aaltoslides}
+\documentclass[logo=bluequo]{aaltoslides}
+%\documentclass{aaltoslides} % DEFAULT
+%\documentclass[first=purple,second=lgreen,logo=bquo,normaltitle,nofoot]{aaltoslides} % SOME OPTION EXAMPLES
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{amssymb,amsmath}
+\usepackage{url}
+\usepackage{lastpage}
+\usepackage{epstopdf}
+%\usepackage[pdfpagemode=None,colorlinks=true,urlcolor=red, linkcolor=black,citecolor=black,pdfstartview=FitH]{hyperref}
+\usepackage{mdframed}
+\usepackage{caption}
+\usepackage{apacite}
+\usepackage{tikz}
+\usetikzlibrary{positioning,shapes,shadows,arrows}
+\tikzset{
+  every overlay node/.style={
+    %draw=black,fill=white,rounded corners,
+    anchor=north west, inner sep=0pt,
+  },
+}
+\def\tikzoverlay{%
+   \tikz[remember picture, overlay]\node[every overlay node]
+}%
+
+%%%% This for easy placement of figure inside a block
+\newcommand{\putfig}[3][1.0]{
+    \begin{block}{#3}
+        \includegraphics[width=#1\linewidth,height=#1\textheight,keepaspectratio]{#2}
+    \end{block}
+}
+%%%%
+
+%%%% To insert lecture date
+\newcommand{\lectdate}{\today}
+%%%%
+
+\title{${SLIDETITLE}}
+
+\author[Marko Kosunen]{Marko Kosunen}
+\institute[MNT]{Department of Electronics and Nanoengineering\\\\
+Aalto University, School of Electrical Engineering\\\\marko.kosunen@aalto.fi}
+
+\aaltofootertext{${SLIDETITLE}}{\lectdate}{\arabic{page}/\pageref{LastPage}\ }
+
+\date{\lectdate}
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Generates the titleframe
+\aaltotitleframe
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+EOF
+#NMODS=`expr \`echo $MODELS | wc -w\` - 2`
+echo "Configuring slides for $ANTENNAS antennas and $USERS users"
+for k in `eval echo {1..${USERS}}`; do 
+    cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE} }
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_Tx_antennas_Rs_${RS}_k=`expr ${k} - 1`.eps}
+    \end{center}
+\end{frame}
+EOF
+done
+
+for k in `eval echo {1..${USERS}}`; do 
+    cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_Tx_antennas_Spectrum_Rs_${RS}_k=`expr ${k} - 1`.eps}
+    \end{center}
+\end{frame}
+EOF
+done
+
+for i in `eval echo {1..${ANTENNAS}}`; do 
+    cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_Antenna_Rs_${RS}_m=`expr ${i} - 1`.eps}
+    \end{center}
+\end{frame}
+
+EOF
+done
+
+for i in `eval echo {1..${ANTENNAS}}`; do 
+    cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_Antenna_Spectrum_Rs_${RS}_m=`expr ${i} - 1`.eps}
+    \end{center}
+\end{frame}
+
+EOF
+done
+
+for i in `eval echo {1..${ANTENNAS}}`; do 
+    cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_Rx_Rs_${RS}_m=`expr ${i} - 1`.eps}
+    \end{center}
+\end{frame}
+
+EOF
+done
+
+for i in `eval echo {1..${ANTENNAS}}`; do 
+    cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_Rx_Spectrum_Rs_${RS}_m=`expr ${i} - 1`.eps}
+    \end{center}
+\end{frame}
+
+EOF
+done
+
+for i in `eval echo {1..${ANTENNAS}}`; do 
+    cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_ADC_Rs_${RS}_m=`expr ${i} - 1`.eps}
+    \end{center}
+\end{frame}
+
+EOF
+done
+
+for i in `eval echo {1..${ANTENNAS}}`; do 
+    cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_ADC_Spectrum_Rs_${RS}_m=`expr ${i} - 1`.eps}
+    \end{center}
+\end{frame}
+
+EOF
+done
+for k in `eval echo {1..${USERS}}`; do 
+        cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_QAM_reference_Rs_${RS}_k=`expr ${k} - 1`.eps}
+    \end{center}
+\end{frame}
+EOF
+done
+
+for i in `eval echo {1..${ANTENNAS}}`; do 
+    for k in `eval echo {1..${USERS}}`; do 
+        cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_DSP_Rs_${RS}_m=`expr ${i} - 1`_k=`expr ${k} - 1`.eps}
+    \end{center}
+\end{frame}
+EOF
+    done
+done
+
+for i in `eval echo {1..${ANTENNAS}}`; do 
+        cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_DSP_Fsync_short_Rs_${RS}_m=`expr ${i} - 1`.eps}
+    \end{center}
+\end{frame}
+EOF
+done
+
+for i in `eval echo {1..${ANTENNAS}}`; do 
+        cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_DSP_Fsync_long_Rs_${RS}_m=`expr ${i} - 1`.eps}
+    \end{center}
+\end{frame}
+EOF
+done
+
+for k in `eval echo {1..${USERS}}`; do 
+        cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_Postproc_Rs_${RS}_k=`expr ${k} - 1`.eps}
+    \end{center}
+\end{frame}
+EOF
+done
+
+for k in `eval echo {1..${USERS}}`; do 
+        cat <<EOF >> ${CURRENTFILE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[t]
+    \frametitle{${SLIDETITLE} ${FILE}}
+    \begin{center}
+        \includegraphics[width=0.7\linewidth]{./Pics/F2_system_serdes_Rs_${RS}_k=`expr ${k} - 1`.eps}
+    \end{center}
+\end{frame}
+EOF
+done
+
+
+
+echo "\end{document}" >> ${CURRENTFILE}
+
+fi
+############################# MAKEFILE   ####################################
+CURRENTFILE="${ROOTPATH}/Makefile"
+echo "Creating ${CURRENTFILE}"
+cat <<EOF > ${CURRENTFILE}
+CONTROLLER=${CONTROLLER}
+#Directories
+THESDKHOME = ${THESDKHOME}
+TOP_ENTITY= ${TOP_ENTITY}
+MATLABPATH= ${MATLABPATH}
+PYTHONPATH= ${PYTHONPATH}
+PICPATH= ${PICPATH}
+SLIDEPATH= ${SLIDEPATH}
+MATLABFILE= ${MATLABFILE}
+PYFILE= ${PYFILE}
+DEPDIR :=.depdir
+\$(shell mkdir -p \$(DEPDIR) >/dev/null)
+
+#Commands
+PY= ${PY}
+PYL= ${PYL}
+PYI= ${PYI}
+MATLAB= ${MATLAB}
+MATLABI= ${MATLABI}
+MATLABG= ${MATLABG}
+TOUCH=touch -r
+#You must ensure these cmdfiles update the target
+MCMDFILE=\$(MATLABPATH)/\$(MATLABFILE).m
+PYCMDFILE= \$(PYTHONPATH)/\$(PYFILE).py
+
+MTARGETS=\$(MCMDFILE:.m=.status) #Ensure these files are generated with matlab cmd
+PYTARGETS=\$(PYCMDFILE:.py=.status) #Ensure these files are generated with python cmd
+
+ifeq (\$(CONTROLLER), MATLAB)
+#Create matlab dependency files from the master cmdfile
+#Need to add the location paths of the matlab dependencies with addpath/genpath
+#Note double quote after -r
+MAKEDEPEND= bsub -I matlab -nodisplay -nosplash -nodesktop -r "addpath('\$(MATLABPATH)'); \\
+            addpath(genpath('\$(THESDKHOME)/Entities')); \\
+            [fList,pList]=matlab.codetools.requiredFilesAndProducts('\$<'); \
+            fid=fopen('\$(DEPDIR)/\$(*F).txt','w');\\
+            for i=1:length(fList); fprintf(fid,'%s\n',char(fList(i))); end; quit;" \\
+            && awk '{print "\$@: " \$\$1 }' \$(DEPDIR)/\$(*F).txt > \$(DEPDIR)/\$(*F).d && rm -f  \$(DEPDIR)/\$(*F).txt
+endif
+
+ifeq (\$(CONTROLLER), MATLAB)
+.PHONY: matlabg matlabi matlab slides all
+all: matlab slides
+endif
+
+ifeq (\$(CONTROLLER), PYTHON)
+.PHONY: py pyl slides all
+all: python slides
+endif
+
+slides: \$(SLIDEPATH)/pdffiles/\$(TOP_ENTITY).pdf 
+
+ifeq (\$(CONTROLLER), MATLAB)
+\$(SLIDEPATH)/pdffiles/%.pdf :  \$(MATLABPATH)/\$(MATLABFILE).status
+	ln -sf \$(PICPATH)/*.eps \$(SLIDEPATH)/Pics/
+	cd \$(SLIDEPATH) && ./makearticle \$(SLIDEPATH)/\$(*F).tex && cd ..
+endif 
+
+ifeq (\$(CONTROLLER), PYTHON)
+\$(SLIDEPATH)/pdffiles/%.pdf : \$(PYTHONPATH)/\$(PYFILE).status
+	ln -sf \$(PICPATH)/*.eps \$(SLIDEPATH)/Pics/
+	cd \$(SLIDEPATH) && ./makearticle \$(SLIDEPATH)/\$(*F).tex && cd ..
+endif
+
+#If results are stored in the .mat file
+matlab: \$(MTARGETS)
+
+\$(MATLABPATH)/%.status : \$(MATLABPATH)/%.m \$(DEPDIR)/%.d
+	\$(MAKEDEPEND)
+	\$(MATLABI) -r ' addpath \$(MATLABPATH); \$(*F); quit;'
+
+
+#interactive matlabsession
+matlabi: \$(MCMDFILE)
+	\$(MATLABI) -r ' addpath \$(MATLABPATH); \$(MATLABFILE); quit;'
+    
+#interactive gui open
+matlabg: 
+	\$(MATLABG) -r ' addpath \$(MATLABPATH);'
+
+#Python submission
+python: \$(PYTARGETS)
+
+\$(PYTHONPATH)/%.status : \$(PYTHONPATH)/%.py
+	\$(PYI) \$(PYTHONPATH)/\$(PYFILE).py
+	@grep -i WARNING  \$@ | uniq | sed -n 's/\(^.*\)\(WARNING.*\\$\)/\2/p'
+
+py: 
+	\$(PYI) \$(PYTHONPATH)/\$(PYFILE).py
+
+#local Python submission
+pyl: 
+	\$(PYL) \$(PYTHONPATH)/\$(PYFILE).py
+
+clean:
+	rm -f \$(MATLABPATH)/*.status
+	rm -f \$(PYTHONPATH)/*.status
+	rm -f \$(SLIDEPATH)/Pics/*.eps
+	rm -f \$(PICPATH)/*.eps
+	rm -f \$(SLIDEPATH)/Pdffiles/*.pdf
+	rm -rf \$(DEPDIR)
+
+ifeq (\$(CONTROLLER), MATLAB)
+#Semicolon is a must?
+\$(DEPDIR)/%.d: ;
+.PRECIOUS: \$(DEPDIR)/%.d
+
+#Includes the dependency files for the cmdfiles generated
+#by \$(MAKEDEPEND). Make is re-run, if these are created.
+#during the make
+#If the include is incorrect, empty recipe does not cause recompilation
+#In that case, Depfiles are considered intermediate.
+include \$(MCMDFILE:\$(MATLABPATH)/%.m=\$(DEPDIR)/%.d)
+endif
+EOF
+#Note because of broken dependencytracking for Python
+echo "NOTE:Controller is ${CONTROLLER}"
+if [ "${CONTROLLER}" == "PYTHON" ]; then
+   echo "Dependency tracking for \"make all\" is NOT functional"
+fi
+##################Hereafter some files you should not need to modify ################################
+

@@ -1,0 +1,16 @@
+#!/bin/sh
+
+
+for i in bf zf bfA zfA; do 
+#for i in bf; do 
+    FILE=./stattestresults/test_$i
+    CONFIG=config_$i
+    rm -f  ${FILE}.result
+    for (( c=1; c<=10; c++ )); do
+        ./configure_$i && make clean && make python
+        grep BER ./Python/F2system.status | tail -2 | head -1 >> ${FILE}.result
+    done
+    sed -n '/.*0$/p' ${FILE}.result | wc -l  >> ${FILE}.result
+done
+
+
